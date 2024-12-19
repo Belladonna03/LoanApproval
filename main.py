@@ -32,7 +32,6 @@ def analyze_column(col):
     plt.subplot(1, 2, 2)
     sns.boxplot(x=col)
     plt.title(f"Boxplot столбца {col.name}")
-
     plt.show()
 def EDA(df):
     print(df.columns)
