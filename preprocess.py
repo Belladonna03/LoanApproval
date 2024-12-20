@@ -111,7 +111,7 @@ def analyze_obj_column(column):
     return results
 def EDA(df):
     print(df.columns)
-    # print(df.info())
+    print(df.info())
     print(df.value_counts())
 
     folder_name = "eda"
@@ -119,7 +119,7 @@ def EDA(df):
         os.makedirs(folder_name)
 
     plot_corr(df, title="Correlation_Matrix_Before_Processing")
-    #
+
     df = df.drop(['person_emp_exp', 'cb_person_cred_hist_length'], axis=1)
     print("Delete columns")
     print(df.columns)
@@ -137,6 +137,8 @@ def EDA(df):
     print("EDA per column")
     print(results)
 
+    df = df.drop(df[df['person_age'] > 100].index)
+
     return df
 
 filename = 'data.csv'
@@ -144,6 +146,3 @@ filename = 'data.csv'
 df = pd.read_csv(filename)
 df = EDA(df)
 df.to_csv('update_df.csv', index=False)
-
-filename = 'update_df.csv'
-df = pd.read_csv(filename)
