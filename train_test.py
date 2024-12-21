@@ -1,9 +1,10 @@
 import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
 
 def metrcics(y_pred, y_test, model):
     TP = ((y_pred == 1) & (y_test == 1)).sum()
@@ -12,16 +13,12 @@ def metrcics(y_pred, y_test, model):
     FN = ((y_pred == 1) & (y_test == 0)).sum()
 
     accuracy = (TP + TN) / (TP + TN + FP + FN)
-    print(f"Accuracy for {model}: {accuracy:.3f}")
 
     precision = TP / (TP + FP)
-    print(f"Precision for {model}: {precision:.3f}")
 
     recall = TP / (TP + FN)
-    print(f"Recall for {model}: {recall:.3f}")
 
-    F1 = 2 * precision * recall / (precision + recall)
-    print(f"F1 for {model}: {F1:.3f}")
+    F1 = (2 * precision * recall) / (precision + recall)
 
     results = {
         f"Accuracy for {model}": accuracy,
@@ -35,6 +32,7 @@ def metrcics(y_pred, y_test, model):
 
 filename = 'update_df.csv'
 df = pd.read_csv(filename)
+results = {}
 
 test_df = df.drop(['loan_status'], axis=1)
 
@@ -64,7 +62,7 @@ LR = LogisticRegression(
     penalty='l2',
     C=1.0,
     solver='liblinear',
-    max_iter=1000,
+    tol=10**-4,
     multi_class='auto',
     class_weight='balanced',
     random_state=101
@@ -75,9 +73,42 @@ LR.fit(X_train_processed, y_train)
 y_pred = LR.predict(X_test_processed)
 y_pred_proba = LR.predict_proba(X_test_processed)[:, 1] # Вероятность для 1 класса
 
-results = [metrcics(y_pred, y_test, 'Logisctic Regression')]
+results['Logistic Regression'] = metrcics(y_pred, y_test, 'Logisctic Regression')
 
 """SVM"""
+SVC = SVC(
+    C=1.0,
+    kernel='rbf',
+    tol=10**-4,
+    gamma='scale',
+    probability=True,
+    random_state=42
+)
 
+SVC.fit(X_train_processed, y_train)
+y_pred = SVC.predict(X_test_processed)
+y_pred_proba = SVC.predict_proba(X_test_processed)[:, 1]
 
+results['SVC'] = metrcics(y_pred, y_test, 'SVC')
 
+"""Random Forest"""
+RFC = RandomForestClassifier(
+    n_estimators=100,
+    max_depth=10,
+    min_samples_split=5,
+    min_samples_leaf=2,
+    max_features='sqrt',
+    class_weight='balanced',
+    random_state=101
+)
+
+RFC.fit(X_train_processed, y_train)
+y_pred = RFC.predict(X_test_processed)
+y_pred_proba = RFC.predict_proba(X_test_processed)[:, 1]
+
+results['RandomForest'] = metrcics(y_pred, y_test, 'RandomForest')
+
+for model, metrics_dict in results.items():
+    print(f"\nResults for {model}:")
+    for metric, value in metrics_dict.items():
+        print(f"{metric}: {value:.3f}")
