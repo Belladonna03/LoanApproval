@@ -9,99 +9,107 @@ from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 import json
 
-def ROC_AUC(y_test, y_pred, model):
+# Function to plot ROC curve with points and calculate AUC
+def plot_roc_auc(y_test, y_pred, model):
     y_test = y_test.tolist()
     y_pred = y_pred.tolist()
 
+    # Count of 1's and 0's in y_test
     count_ones = y_test.count(1)
     count_zeros = y_test.count(0)
 
+    # Normalization factors for each class
     m = 1 / count_ones
     n = 1 / count_zeros
 
+    # Sorting by predicted values
     zipped = zip(y_test, y_pred)
     zipped_sorted = sorted(zipped, key=lambda x: x[1], reverse=True)
 
-    x = []
-    y = []
+    # Initialize lists for the ROC curve points
+    x = [0]  # First point is always (0, 0)
+    y = [0]  # First point is always (0, 0)
+
     x_cnt = 0
     y_cnt = 0
-    x.append(x_cnt)
-    y.append(y_cnt)
+
+    # Generate the ROC curve
     for test, pred in zipped_sorted:
         x_cnt += (n if test == 0 else 0)
         y_cnt += (m if test == 1 else 0)
         x.append(x_cnt)
         y.append(y_cnt)
 
-    fpr, tpr, thresholds = roc_curve(y_test, y_pred)
+    # Add the final point (1, 1) to ensure the last point is always (1, 1)
+    x.append(1)
+    y.append(1)
+
+    # Built-in ROC curve calculation
+    fpr, tpr, _ = roc_curve(y_test, y_pred)
     roc_auc = auc(fpr, tpr)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
-    ax1.plot(x, y, marker='o', linestyle='-', color='b', label='Точки')
-    ax1.plot([0, 1], [0, 1], linestyle='--', color='r', label='Прямая (0, 0) -> (1, 1)')
-    ax1.set_title('ROC-кривая нарисованная поточечно')
+    # Custom ROC curve with points
+    ax1.plot(x, y, marker='o', linestyle='-', color='b', label='ROC Points')
+    ax1.plot([0, 1], [0, 1], linestyle='--', color='r', label='Random Guess Line')
+    ax1.set_title('Pointwise ROC Curve')
     ax1.set_xlabel('False Positive Rate')
     ax1.set_ylabel('True Positive Rate')
     ax1.legend()
 
-    ax2.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC кривая (AUC = {roc_auc:.2f})')
+    # Built-in ROC curve
+    ax2.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC Curve (AUC = {roc_auc:.2f})')
     ax2.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-    ax2.set_title('ROC-кривая встроенная')
+    ax2.set_title('Built-in ROC Curve')
     ax2.set_xlabel('False Positive Rate')
     ax2.set_ylabel('True Positive Rate')
     ax2.legend(loc="lower right")
 
-    fig.text(0.5, 0.02, f"Сравнение ROC-кривых для {model}", ha='center', fontsize=12)
-    plt.savefig(f'roc_curves_for_{model}.png', dpi=300, bbox_inches='tight')
-
+    fig.text(0.5, 0.02, f"ROC Comparison for {model}", ha='center', fontsize=12)
     plt.tight_layout()
+    plt.savefig(f'roc_curves_for_{model}.png', dpi=300, bbox_inches='tight')
     plt.show()
 
     return roc_auc
 
-def metrcics(y_pred, y_test, model):
+# Function to calculate classification metrics
+def metrics(y_pred, y_test, model):
     TP = ((y_pred == 1) & (y_test == 1)).sum()
     TN = ((y_pred == 0) & (y_test == 0)).sum()
     FP = ((y_pred == 0) & (y_test == 1)).sum()
     FN = ((y_pred == 1) & (y_test == 0)).sum()
 
     accuracy = (TP + TN) / (TP + TN + FP + FN)
-
-    precision = TP / (TP + FP)
-
-    recall = TP / (TP + FN)
-
-    F1 = (2 * precision * recall) / (precision + recall)
-
-    auc = ROC_AUC(y_test, y_pred, model)
+    precision = TP / (TP + FP) if TP + FP > 0 else 0
+    recall = TP / (TP + FN) if TP + FN > 0 else 0
+    F1 = (2 * precision * recall) / (precision + recall) if precision + recall > 0 else 0
+    auc = plot_roc_auc(y_test, y_pred, model)
 
     results = {
-        f"Accuracy for {model}": accuracy,
-        f"Precision for {model}": precision,
-        f"Recall for {model}": recall,
-        f"F1 for {model}": F1,
-        f"ROC-AUC: ": auc
+        f"Accuracy": f"{accuracy:.3f}",
+        f"Precision": f"{precision:.3f}",
+        f"Recall": f"{recall:.3f}",
+        f"F1": f"{F1:.3f}",
+        f"ROC-AUC: ": f"{auc:.3f}"
     }
 
     return results
 
-
+# Loading dataset
 filename = 'update_df.csv'
 df = pd.read_csv(filename)
 results = {}
 
-test_df = df.drop(['loan_status'], axis=1)
-
 X = df.drop(['loan_status'], axis=1)
-y = df.loc[:, 'loan_status']
+y = df['loan_status']
 
 numeric_features = X.select_dtypes(include=['int64', 'float64']).columns
 categorical_features = X.select_dtypes(include=['object']).columns
 
-numeric_transformer = StandardScaler()  # Стандартизация числовых признаков
-categorical_transformer = OneHotEncoder()  # Кодирование категориальных признаков
+# Preprocessing pipeline
+numeric_transformer = StandardScaler()  # Standardizing numeric features
+categorical_transformer = OneHotEncoder()  # Encoding categorical features
 
 preprocessor = ColumnTransformer(
     transformers=[
@@ -110,46 +118,41 @@ preprocessor = ColumnTransformer(
     ]
 )
 
+# Train-test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, stratify=y, random_state=101)
 
+# Applying preprocessing
 X_train_processed = preprocessor.fit_transform(X_train)
 X_test_processed = preprocessor.transform(X_test)
 
-"""Logistic Regression"""
+# Logistic Regression Model
 LR = LogisticRegression(
     penalty='l2',
     C=1.0,
     solver='liblinear',
-    tol=10**-4,
+    tol=1e-4,
     multi_class='auto',
     class_weight='balanced',
     random_state=101
 )
-
 LR.fit(X_train_processed, y_train)
-
 y_pred = LR.predict(X_test_processed)
-y_pred_proba = LR.predict_proba(X_test_processed)[:, 1] # Вероятность для 1 класса
+results['Logistic Regression'] = metrics(y_pred, y_test, 'Logistic Regression')
 
-results['Logistic Regression'] = metrcics(y_pred, y_test, 'Logistic Regression')
-
-"""SVM"""
-SVC = SVC(
+# Support Vector Classifier Model
+svc = SVC(
     C=1.0,
     kernel='rbf',
-    tol=10**-4,
+    tol=1e-4,
     gamma='scale',
     probability=True,
     random_state=42
 )
+svc.fit(X_train_processed, y_train)
+y_pred = svc.predict(X_test_processed)
+results['SVC'] = metrics(y_pred, y_test, 'SVC')
 
-SVC.fit(X_train_processed, y_train)
-y_pred = SVC.predict(X_test_processed)
-y_pred_proba = SVC.predict_proba(X_test_processed)[:, 1]
-
-results['SVC'] = metrcics(y_pred, y_test, 'SVC')
-
-"""Random Forest"""
+# Random Forest Classifier Model
 RFC = RandomForestClassifier(
     n_estimators=100,
     max_depth=10,
@@ -159,13 +162,11 @@ RFC = RandomForestClassifier(
     class_weight='balanced',
     random_state=101
 )
-
 RFC.fit(X_train_processed, y_train)
 y_pred = RFC.predict(X_test_processed)
-y_pred_proba = RFC.predict_proba(X_test_processed)[:, 1]
+results['RandomForest'] = metrics(y_pred, y_test, 'RandomForest')
 
-results['RandomForest'] = metrcics(y_pred, y_test, 'RandomForest')
-
-filename = 'results.csv'
+# Saving results
+filename = 'results.json'
 with open(filename, 'w', encoding='utf-8') as json_file:
     json.dump(results, json_file, ensure_ascii=False, indent=4)
