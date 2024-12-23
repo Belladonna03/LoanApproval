@@ -73,6 +73,8 @@ def plot_roc_auc(y_test, y_pred, model):
 
     return roc_auc
 
+# def plot_pr_auc():
+
 # Function to calculate classification metrics
 def metrics(y_pred, y_test, model):
     TP = ((y_pred == 1) & (y_test == 1)).sum()
