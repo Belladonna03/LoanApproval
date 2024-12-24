@@ -4,20 +4,23 @@
         "Precision": "0.924",
         "Recall": "0.622",
         "F1": "0.744",
-        "ROC-AUC: ": "0.882"
+        "ROC-AUC: ": "0.882",
+        "PR-AUC:": "0.856"
     },
     "SVC": {
         "Accuracy": "0.917",
         "Precision": "0.753",
         "Recall": "0.858",
         "F1": "0.802",
-        "ROC-AUC: ": "0.859"
+        "ROC-AUC: ": "0.859",
+        "PR-AUC:": "0.899"
     },
     "RandomForest": {
         "Accuracy": "0.887",
         "Precision": "0.916",
         "Recall": "0.683",
         "F1": "0.783",
-        "ROC-AUC: ": "0.897"
+        "ROC-AUC: ": "0.897",
+        "PR-AUC:": "0.919"
     }
 }

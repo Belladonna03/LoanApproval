@@ -5,6 +5,7 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import precision_recall_curve, auc
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 import json
@@ -75,8 +76,9 @@ def plot_roc_auc(y_test, y_pred, model):
 
 # def plot_pr_auc():
 
+
 # Function to calculate classification metrics
-def metrics(y_pred, y_test, model):
+def metrics(y_pred, y_pred_proba, y_test, model):
     TP = ((y_pred == 1) & (y_test == 1)).sum()
     TN = ((y_pred == 0) & (y_test == 0)).sum()
     FP = ((y_pred == 0) & (y_test == 1)).sum()
@@ -93,7 +95,7 @@ def metrics(y_pred, y_test, model):
         f"Precision": f"{precision:.3f}",
         f"Recall": f"{recall:.3f}",
         f"F1": f"{F1:.3f}",
-        f"ROC-AUC: ": f"{auc:.3f}"
+        f"ROC-AUC: ": f"{auc:.3f}",
     }
 
     return results
@@ -139,7 +141,9 @@ LR = LogisticRegression(
 )
 LR.fit(X_train_processed, y_train)
 y_pred = LR.predict(X_test_processed)
-results['Logistic Regression'] = metrics(y_pred, y_test, 'Logistic Regression')
+y_pred_proba = LR.predict_proba(X_test_processed)[:, 1]
+metrics(y_pred, y_pred_proba, y_test, 'Logistic Regression')
+results['Logistic Regression'] = metrics(y_pred, y_pred_proba, y_test, 'Logistic Regression')
 
 # Support Vector Classifier Model
 svc = SVC(
@@ -152,7 +156,8 @@ svc = SVC(
 )
 svc.fit(X_train_processed, y_train)
 y_pred = svc.predict(X_test_processed)
-results['SVC'] = metrics(y_pred, y_test, 'SVC')
+y_pred_proba = svc.predict_proba(X_test_processed)[:, 1]
+results['SVC'] = metrics(y_pred, y_pred_proba, y_test, 'SVC')
 
 # Random Forest Classifier Model
 RFC = RandomForestClassifier(
@@ -166,7 +171,8 @@ RFC = RandomForestClassifier(
 )
 RFC.fit(X_train_processed, y_train)
 y_pred = RFC.predict(X_test_processed)
-results['RandomForest'] = metrics(y_pred, y_test, 'RandomForest')
+y_pred_proba = RFC.predict_proba(X_test_processed)[:, 1]
+results['RandomForest'] = metrics(y_pred, y_pred_proba, y_test, 'RandomForest')
 
 # Saving results
 filename = 'results.json'
