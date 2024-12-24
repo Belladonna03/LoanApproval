@@ -138,14 +138,16 @@ def metrics(y_pred, y_pred_proba, y_test, model):
     precision = TP / (TP + FP) if TP + FP > 0 else 0
     recall = TP / (TP + FN) if TP + FN > 0 else 0
     F1 = (2 * precision * recall) / (precision + recall) if precision + recall > 0 else 0
-    auc = plot_roc_auc(y_test, y_pred, model)
+    roc_auc = plot_roc_auc(y_test, y_pred, model)
+    pr_auc = plot_pr_auc(y_test, y_pred, model)
 
     results = {
         f"Accuracy": f"{accuracy:.3f}",
         f"Precision": f"{precision:.3f}",
         f"Recall": f"{recall:.3f}",
         f"F1": f"{F1:.3f}",
-        f"ROC-AUC: ": f"{auc:.3f}",
+        f"ROC-AUC: ": f"{roc_auc:.3f}",
+        f"PR-AUC: ": f"{pr_auc:.3f}",
     }
 
     return results
