@@ -75,6 +75,56 @@ def plot_roc_auc(y_test, y_pred, model):
     return roc_auc
 
 # def plot_pr_auc():
+# Function to plot PR curve with points and calculate AUC
+def plot_pr_auc(y_test, y_pred_proba, model):
+    y_test = y_test.tolist()
+    y_pred_proba = y_pred_proba.tolist()
+
+    zipped_sorted = sorted(zip(y_test, y_pred_proba), key=lambda x: x[1], reverse=True)
+
+    precision_list = []
+    recall_list = []
+
+    for threshold in [i / 10.0 for i in range(10, -1, -1)]:
+        tp = fp = 0
+        fn = y_test.count(1)
+
+        for y_true, y_prob in zipped_sorted:
+            if y_prob >= threshold:
+                if y_true == 1:
+                    tp += 1
+                    fn -= 1
+                else:
+                    fp += 1
+            else:
+                break
+
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 1.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 1.0
+
+        precision_list.append(precision)
+        recall_list.append(recall)
+
+    pr_auc_manual = auc(recall_list, precision_list)
+
+    precision_sklearn, recall_sklearn, _ = precision_recall_curve(y_test, y_pred_proba)
+    pr_auc_sklearn = auc(recall_sklearn, precision_sklearn)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(recall_list, precision_list, marker='o', linestyle='-', color='b',
+             label=f'Manual Calculation (PR-AUC = {pr_auc_manual:.2f})')
+    plt.plot(recall_sklearn, precision_sklearn, linestyle='--', color='r',
+             label=f'Scikit-learn (PR-AUC = {pr_auc_sklearn:.2f})')
+
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.title(f'Precision-Recall Curve: {model}')
+    plt.legend(loc='lower left')
+    plt.grid(True)
+    plt.savefig(f'pr_curves_for_{model}.png', dpi=300, bbox_inches='tight')
+    plt.show()
+
+    return pr_auc_sklearn
 
 
 # Function to calculate classification metrics
