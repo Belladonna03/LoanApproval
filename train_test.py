@@ -10,10 +10,6 @@ from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 import json
 
-# def calculate_auc():
-#
-
-
 # Function to plot ROC curve with points and calculate AUC
 def plot_roc_auc(y_test, y_pred, model):
     y_test = y_test.tolist()
