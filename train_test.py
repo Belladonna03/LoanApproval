@@ -3,229 +3,209 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_curve, auc
-from sklearn.metrics import precision_recall_curve, auc
-from sklearn.svm import SVC
+from sklearn.metrics import roc_curve, precision_recall_curve, accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import auc
 from sklearn.ensemble import RandomForestClassifier
+import numpy as np
 import json
 
-# Function to plot ROC curve with points and calculate AUC
-def plot_roc_auc(y_test, y_pred, model):
-    y_test = y_test.tolist()
-    y_pred = y_pred.tolist()
+def train_test(df):
+    X = df.drop(['loan_status'], axis=1)
+    y = df['loan_status']
 
-    # Count of 1's and 0's in y_test
-    count_ones = y_test.count(1)
-    count_zeros = y_test.count(0)
+    numeric_features = X.select_dtypes(include=['int64', 'float64']).columns
+    categorical_features = X.select_dtypes(include=['object']).columns
 
-    # Normalization factors for each class
-    m = 1 / count_ones
-    n = 1 / count_zeros
+    # Обрабатываем отдельно количественные и категориальные столбцы
+    numeric_transformer = StandardScaler()
+    categorical_transformer = OneHotEncoder()
 
-    # Sorting by predicted values
-    zipped = zip(y_test, y_pred)
-    zipped_sorted = sorted(zipped, key=lambda x: x[1], reverse=True)
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', numeric_transformer, numeric_features),
+            ('cat', categorical_transformer, categorical_features)
+        ]
+    )
 
-    # Initialize lists for the ROC curve points
-    x = [0]  # First point is always (0, 0)
-    y = [0]  # First point is always (0, 0)
+    # Делим на тестовую и обучающую выбоорки
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, stratify=y, random_state=101)
 
-    x_cnt = 0
-    y_cnt = 0
+    # Применяем предобработку уже после разделения
+    X_train = preprocessor.fit_transform(X_train)
+    X_test = preprocessor.transform(X_test)
 
-    # Generate the ROC curve
-    for test, pred in zipped_sorted:
-        x_cnt += (n if test == 0 else 0)
-        y_cnt += (m if test == 1 else 0)
-        x.append(x_cnt)
-        y.append(y_cnt)
+    return X_train, X_test, y_train, y_test
 
-    # Add the final point (1, 1) to ensure the last point is always (1, 1)
-    x.append(1)
-    y.append(1)
+def plot_roc_auc(y_true, y_scores, model_name):
+    # Получаем индексы после сортировки scores по убыванию
+    sorted_indices = np.argsort(y_scores)[::-1]
+    # Применяем индексы в векторам
+    y_true = np.array(y_true)[sorted_indices]
+    y_scores = np.array(y_scores)[sorted_indices]
 
-    # Built-in ROC curve calculation
-    fpr, tpr, _ = roc_curve(y_test, y_pred)
-    roc_auc = auc(fpr, tpr)
+    FPR = []
+    TPR = []
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+    P = sum(y_true)
+    N = len(y_true) - P
 
-    # Custom ROC curve with points
-    ax1.plot(x, y, marker='o', linestyle='-', color='b', label='ROC Points')
-    ax1.plot([0, 1], [0, 1], linestyle='--', color='r', label='Random Guess Line')
-    ax1.set_title('Pointwise ROC Curve')
-    ax1.set_xlabel('False Positive Rate')
-    ax1.set_ylabel('True Positive Rate')
-    ax1.legend()
+    # Идеально строит кривую как в sklearn
+    #thresholds = np.unique(y_scores)
+    thresholds = np.arange(0.0, 1.01, 0.2)
 
-    # Built-in ROC curve
-    ax2.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC Curve (AUC = {roc_auc:.2f})')
-    ax2.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-    ax2.set_title('Built-in ROC Curve')
-    ax2.set_xlabel('False Positive Rate')
-    ax2.set_ylabel('True Positive Rate')
-    ax2.legend(loc="lower right")
+    for thresh in thresholds:
+        FP = 0
+        TP = 0
+        thresh = round(thresh, 2)
+        for i in range(len(y_scores)):
+            if y_scores[i] >= thresh:
+                if y_true[i] == 1:
+                    TP += 1
+                if y_true[i] == 0:
+                    FP += 1
 
-    fig.text(0.5, 0.02, f"ROC Comparison for {model}", ha='center', fontsize=12)
-    plt.tight_layout()
-    plt.savefig(f'roc_curves_for_{model}.png', dpi=300, bbox_inches='tight')
-    plt.show()
+        TPR.append(TP / P if P != 0 else 0)
+        FPR.append(FP / N if N != 0 else 0)
 
-    return roc_auc
+    manual_auc = -1 * np.trapz(TPR, FPR)
 
-# Function to plot PR curve with points and calculate AUC
-def plot_pr_auc(y_test, y_pred_proba, model):
-    y_test = y_test.tolist()
-    y_pred_proba = y_pred_proba.tolist()
+    # Встроенная функция для площади auc и для графика ROC-кривой
+    fpr, tpr, _ = roc_curve(y_true, y_scores)
+    sklearn_auc = auc(fpr, tpr)
 
-    zipped_sorted = sorted(zip(y_test, y_pred_proba), key=lambda x: x[1], reverse=True)
-
-    precision_list = []
-    recall_list = []
-
-    for threshold in [i / 10.0 for i in range(10, -1, -1)]:
-        tp = fp = 0
-        fn = y_test.count(1)
-
-        for y_true, y_prob in zipped_sorted:
-            if y_prob >= threshold:
-                if y_true == 1:
-                    tp += 1
-                    fn -= 1
-                else:
-                    fp += 1
-            else:
-                break
-
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 1.0
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 1.0
-
-        precision_list.append(precision)
-        recall_list.append(recall)
-
-    pr_auc_manual = auc(recall_list, precision_list)
-
-    precision_sklearn, recall_sklearn, _ = precision_recall_curve(y_test, y_pred_proba)
-    pr_auc_sklearn = auc(recall_sklearn, precision_sklearn)
-
-    plt.figure(figsize=(10, 6))
-    plt.plot(recall_list, precision_list, marker='o', linestyle='-', color='b',
-             label=f'Manual Calculation (PR-AUC = {pr_auc_manual:.2f})')
-    plt.plot(recall_sklearn, precision_sklearn, linestyle='--', color='r',
-             label=f'Scikit-learn (PR-AUC = {pr_auc_sklearn:.2f})')
-
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.title(f'Precision-Recall Curve: {model}')
-    plt.legend(loc='lower left')
+    # Построение графиков
+    plt.figure(figsize=(8, 6))
+    plt.plot(FPR, TPR, label=f"Manual ROC Curve (AUC = {manual_auc:.2f})", linestyle="--", color="blue")
+    plt.plot(fpr, tpr, label=f"Sklearn ROC Curve (AUC = {sklearn_auc:.2f})", linestyle="-", color="red")
+    plt.plot([0, 1], [0, 1], linestyle="--", color="green", label="Random Guess")
+    plt.xlabel("False Positive Rate (FPR)")
+    plt.ylabel("True Positive Rate (TPR)")
+    plt.title(f"ROC Curve Comparison for {model_name}")
+    plt.legend()
     plt.grid(True)
-    plt.savefig(f'pr_curves_for_{model}.png', dpi=300, bbox_inches='tight')
+    filepath = f"results/ROC_Curve_Comparison_{model_name}.png"
+    plt.savefig(filepath)
     plt.show()
 
-    return pr_auc_sklearn
+    return manual_auc, sklearn_auc
 
+def plot_pr_auc(y_true, y_scores, model_name):
+    # Получаем индексы после сортировки scores по убыванию
+    sorted_indices = np.argsort(y_scores)[::-1]
+    y_true = np.array(y_true)[sorted_indices]
+    y_scores = np.array(y_scores)[sorted_indices]
 
-# Function to calculate classification metrics
-def metrics(y_pred, y_pred_proba, y_test, model):
+    Precision = []
+    Recall = []
+
+    P = sum(y_true)  # Количество положительных примеров
+
+    # Идеальный случай
+    # thresholds = np.unique(y_scores)
+    # Таким способом получается большая погрешность
+    thresholds = np.arange(0.0, 1.01, 0.2)
+
+    for thresh in thresholds:
+        FP = 0
+        TP = 0
+        thresh = round(thresh, 2)
+        for i in range(len(y_scores)):
+            if y_scores[i] >= thresh:
+                if y_true[i] == 1:
+                    TP += 1
+                if y_true[i] == 0:
+                    FP += 1
+
+        Recall.append(TP / P if P != 0 else 0)
+        Precision.append(TP / (TP + FP) if (TP + FP) != 0 else 1) # Обрабатывая деление на 0 по дефолту пишем 1
+
+    manual_auc = -1 * np.trapz(Precision, Recall)
+
+    # Встроенная функция для площади auc и для графика PR-кривой
+    precision, recall, _ = precision_recall_curve(y_true, y_scores)
+    sklearn_auc = auc(recall, precision)
+
+    # Построение графиков
+    plt.figure(figsize=(8, 6))
+    plt.plot(Recall, Precision, label=f"Manual PR Curve (AUC = {manual_auc:.2f})", linestyle="--", color="blue")
+    plt.plot(recall, precision, label=f"Sklearn PR Curve (AUC = {sklearn_auc:.2f})", linestyle="-", color="red")
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title(f"Precision-Recall Curve Comparison for {model_name}")
+    plt.legend()
+    plt.grid(True)
+    filepath = f"results/PR_Curve_Comparison_Fixed_{model_name}.png"
+    plt.savefig(filepath)
+    plt.show()
+
+    return manual_auc, sklearn_auc
+
+def metrics(y_pred, y_pred_proba, y_test, model_name):
+    results = {}
     TP = ((y_pred == 1) & (y_test == 1)).sum()
     TN = ((y_pred == 0) & (y_test == 0)).sum()
-    FP = ((y_pred == 0) & (y_test == 1)).sum()
-    FN = ((y_pred == 1) & (y_test == 0)).sum()
+    FP = ((y_pred == 1) & (y_test == 0)).sum()
+    FN = ((y_pred == 0) & (y_test == 1)).sum()
 
-    accuracy = (TP + TN) / (TP + TN + FP + FN)
-    precision = TP / (TP + FP) if TP + FP > 0 else 0
-    recall = TP / (TP + FN) if TP + FN > 0 else 0
-    F1 = (2 * precision * recall) / (precision + recall) if precision + recall > 0 else 0
-    roc_auc = plot_roc_auc(y_test, y_pred, model)
-    pr_auc = plot_pr_auc(y_test, y_pred, model)
+    manual_accuracy = (TP + TN) / (TP + TN + FP + FN)
+    manual_precision = TP / (TP + FP) if (TP + FP) > 0 else 0
+    manual_recall = TP / (TP + FN) if (TP + FN) > 0 else 0
+    manual_F1 = (2 * manual_precision * manual_recall) / (manual_precision + manual_recall) if manual_precision + manual_recall > 0 else 0
+    manual_roc_auc, sklearn_roc_auc = plot_roc_auc(y_test, y_pred_proba, model_name)
+    manual_pr_auc, sklearn_pr_auc = plot_pr_auc(y_test, y_pred_proba, model_name)
 
-    results = {
+    results['manual'] = {
+        f"Accuracy": f"{manual_accuracy:.3f}",
+        f"Precision": f"{manual_precision:.3f}",
+        f"Recall": f"{manual_recall:.3f}",
+        f"F1": f"{manual_F1:.3f}",
+        f"ROC-AUC: ": f"{manual_roc_auc:.3f}",
+        f"PR-AUC: ": f"{manual_pr_auc:.3f}",
+    }
+
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred)
+    recall = recall_score(y_test, y_pred)
+    F1 = f1_score(y_test, y_pred)
+
+    results['sklearn'] = {
         f"Accuracy": f"{accuracy:.3f}",
         f"Precision": f"{precision:.3f}",
         f"Recall": f"{recall:.3f}",
         f"F1": f"{F1:.3f}",
-        f"ROC-AUC: ": f"{roc_auc:.3f}",
-        f"PR-AUC: ": f"{pr_auc:.3f}",
+        f"ROC-AUC: ": f"{sklearn_roc_auc:.3f}",
+        f"PR-AUC: ": f"{sklearn_pr_auc:.3f}",
     }
 
     return results
 
-# Loading dataset
-filename = 'update_df.csv'
-df = pd.read_csv(filename)
-results = {}
+def Random_Forest(X_train, X_test, y_train):
+    RFC = RandomForestClassifier(
+        n_estimators=100,
+        max_depth=10,
+        min_samples_split=5, # Минимальное количество объектов для разделения узла
+        min_samples_leaf=2, # Минимальное количество выборок в листовом узле
+        max_features='sqrt',
+        class_weight='balanced',
+        random_state=101
+    )
+    RFC.fit(X_train, y_train)
+    y_pred = RFC.predict(X_test)
+    y_pred_proba = RFC.predict_proba(X_test)[:, 1]
 
-X = df.drop(['loan_status'], axis=1)
-y = df['loan_status']
+    return y_pred, y_pred_proba
 
-numeric_features = X.select_dtypes(include=['int64', 'float64']).columns
-categorical_features = X.select_dtypes(include=['object']).columns
+if __name__ == "__main__":
+    filename = 'update_df.csv'
+    df = pd.read_csv(filename)
+    results = {}
 
-# Preprocessing pipeline
-numeric_transformer = StandardScaler()  # Standardizing numeric features
-categorical_transformer = OneHotEncoder()  # Encoding categorical features
+    X_train, X_test, y_train, y_test = train_test(df)
 
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('num', numeric_transformer, numeric_features),
-        ('cat', categorical_transformer, categorical_features)
-    ]
-)
+    model_name = 'RandomForest'
+    y_pred, y_pred_proba = Random_Forest(X_train, X_test, y_train)
+    results[model_name] = metrics(y_pred, y_pred_proba, y_test, model_name)
 
-# Train-test split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, stratify=y, random_state=101)
-
-# Applying preprocessing
-X_train_processed = preprocessor.fit_transform(X_train)
-X_test_processed = preprocessor.transform(X_test)
-
-# Logistic Regression Model
-LR = LogisticRegression(
-    penalty='l2',
-    C=1.0,
-    solver='liblinear',
-    tol=1e-4,
-    multi_class='auto',
-    class_weight='balanced',
-    random_state=101
-)
-LR.fit(X_train_processed, y_train)
-y_pred = LR.predict(X_test_processed)
-y_pred_proba = LR.predict_proba(X_test_processed)[:, 1]
-metrics(y_pred, y_pred_proba, y_test, 'Logistic Regression')
-results['Logistic Regression'] = metrics(y_pred, y_pred_proba, y_test, 'Logistic Regression')
-
-# Support Vector Classifier Model
-svc = SVC(
-    C=1.0,
-    kernel='rbf',
-    tol=1e-4,
-    gamma='scale',
-    probability=True,
-    random_state=42
-)
-svc.fit(X_train_processed, y_train)
-y_pred = svc.predict(X_test_processed)
-y_pred_proba = svc.predict_proba(X_test_processed)[:, 1]
-results['SVC'] = metrics(y_pred, y_pred_proba, y_test, 'SVC')
-
-# Random Forest Classifier Model
-RFC = RandomForestClassifier(
-    n_estimators=100,
-    max_depth=10,
-    min_samples_split=5,
-    min_samples_leaf=2,
-    max_features='sqrt',
-    class_weight='balanced',
-    random_state=101
-)
-RFC.fit(X_train_processed, y_train)
-y_pred = RFC.predict(X_test_processed)
-y_pred_proba = RFC.predict_proba(X_test_processed)[:, 1]
-results['RandomForest'] = metrics(y_pred, y_pred_proba, y_test, 'RandomForest')
-
-# Saving results
-filename = 'results.json'
-with open(filename, 'w', encoding='utf-8') as json_file:
-    json.dump(results, json_file, ensure_ascii=False, indent=4)
+    filename = 'results/results.json'
+    with open(filename, 'w', encoding='utf-8') as json_file:
+        json.dump(results, json_file, ensure_ascii=False, indent=4)

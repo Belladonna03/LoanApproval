@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import os
 from scipy import stats
 
+# Построение и сохранение матрицы корреляции для числовых признаков
 def plot_corr(df, title):
     corr_matrix = df.corr()
     plt.figure(figsize=(10, 8))
@@ -13,6 +14,7 @@ def plot_corr(df, title):
     plt.savefig(plot_filename)
     plt.show()
 
+# Построение boxplot для поиска выбросов в наборе данных
 def plot_boxplot(df):
     plt.figure(figsize=(10,6))
     sns.boxplot(df)
@@ -55,7 +57,7 @@ def analyze_int_column(column):
     # Построение графиков
     plt.figure(figsize=(15, 5))
 
-    # Гистограмма и KDE
+    # Гистограмма
     plt.subplot(1, 3, 1)
     sns.histplot(column.dropna(), kde=True, color='blue')
     plt.title(f'Distribution of {column.name}')
@@ -79,6 +81,8 @@ def analyze_int_column(column):
     return results
 
 def analyze_obj_column(column):
+    # Анализ категориального столбца
+    # Пропущенные значения и уникальные значения
     missing_values = column.isnull().sum()
     unique_values = column.nunique()
     most_frequent_value = column.mode().values[0] if not column.mode().empty else None
@@ -109,21 +113,25 @@ def analyze_obj_column(column):
     plt.show()
 
     return results
+
 def EDA(df):
-    print(df.columns)
+    # Общая информация о наборе данных
     print(df.info())
-    print(df.value_counts())
+    print(df.describe())
 
     folder_name = "eda"
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
 
+    # Построение матрицы корреляции до обработки данных
     plot_corr(df, title="Correlation_Matrix_Before_Processing")
 
+    # Удаление выбранных столбцов
     df = df.drop(['person_emp_exp', 'cb_person_cred_hist_length'], axis=1)
     print("Delete columns")
     print(df.columns)
 
+    # Построение матрицы корреляции после обработки данных
     plot_corr(df, title="Correlation_Matrix_After_Processing")
     results = {}
     int_cols = ['person_age', 'person_income', 'person_emp_exp', 'loan_amnt', 'loan_int_rate', 'loan_percent_income', 'cb_person_cred_hist_length', 'credit_score']
@@ -141,8 +149,9 @@ def EDA(df):
 
     return df
 
-filename = 'data.csv'
+if __name__ == "__main__":
+    filename = 'data/data.csv'
 
-df = pd.read_csv(filename)
-df = EDA(df)
-df.to_csv('update_df.csv', index=False)
+    df = pd.read_csv(filename)
+    df = EDA(df)
+    df.to_csv('data/update_df.csv', index=False)
