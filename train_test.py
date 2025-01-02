@@ -103,20 +103,6 @@ def plot_pr_auc(y_true, y_scores, model_name):
 
     thresholds = np.arange(0.0, 1.01, 0.2)
 
-    # for thresh in thresholds:
-    #     FP = 0
-    #     TP = 0
-    #     thresh = round(thresh, 2)
-    #     for i in range(len(y_scores)):
-    #         if y_scores[i] >= thresh:
-    #             if y_true[i] == 1:
-    #                 TP += 1
-    #             if y_true[i] == 0:
-    #                 FP += 1
-    #
-    #     Recall.append(TP / P if P != 0 else 0)
-    #     Precision.append(TP / (TP + FP) if (TP + FP) != 0 else 1) # Обрабатывая деление на 0 по дефолту пишем 1
-
     for thresh in thresholds:
         TP = sum((y_scores >= thresh) & (y_true == 1))
         FP = sum((y_scores >= thresh) & (y_true == 0))
