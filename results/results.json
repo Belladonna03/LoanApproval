@@ -5,16 +5,16 @@
             "Precision": "0.683",
             "Recall": "0.916",
             "F1": "0.783",
-            "ROC-AUC: ": "0.964",
-            "PR-AUC: ": "0.902"
+            "ROC-AUC": "0.964",
+            "PR-AUC": "0.902"
         },
         "sklearn": {
             "Accuracy": "0.887",
             "Precision": "0.683",
             "Recall": "0.916",
             "F1": "0.783",
-            "ROC-AUC: ": "0.971",
-            "PR-AUC: ": "0.919"
+            "ROC-AUC": "0.971",
+            "PR-AUC": "0.919"
         }
     }
 }

@@ -10,6 +10,7 @@ def plot_corr(df, title):
     plt.figure(figsize=(10, 8))
     sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5)
     plt.title(title)
+    plt.tight_layout()
     plot_filename = f"eda/{title}.png"
     plt.savefig(plot_filename)
     plt.show()
@@ -19,8 +20,10 @@ def plot_boxplot(df):
     plt.figure(figsize=(10,6))
     sns.boxplot(df)
     plt.title("Boxplot для обнаружения выбросов")
+    plt.tight_layout()
     plt.show()
 
+# Анализ числового столбца
 def analyze_int_column(column):
     # Пропуски данных
     missing_values = column.isnull().sum()
@@ -71,17 +74,15 @@ def analyze_int_column(column):
     plt.subplot(1, 3, 3)
     stats.probplot(column.dropna(), dist="norm", plot=plt)
     plt.title(f'QQ-plot of {column.name}')
-
     plt.tight_layout()
 
     plt.savefig(f'eda/{column.name}_eda.png')
-
     plt.show()
 
     return results
 
+# Анализ категориального столбца
 def analyze_obj_column(column):
-    # Анализ категориального столбца
     # Пропущенные значения и уникальные значения
     missing_values = column.isnull().sum()
     unique_values = column.nunique()
@@ -92,6 +93,7 @@ def analyze_obj_column(column):
     relative_frequency = column.value_counts(normalize=True)
     dummies = pd.get_dummies(column, prefix=column.name)
 
+    # Результаты для текущего столбца
     results = {
         'Missing Values': missing_values,
         'Unique Values': unique_values,
@@ -103,10 +105,11 @@ def analyze_obj_column(column):
         'Dummies': dummies
     }
 
-    # Pie Chart
+    # Построение круговой диаграммы
     plt.figure(figsize=(6, 6))
     plt.pie(value_counts, labels=value_counts.index, autopct='%1.1f%%', startangle=140)
     plt.title(f'Распределение значений столбца "{column.name}"')
+    plt.tight_layout()
 
     plot_filename = f"eda/{column.name}_pie_plot.png"
     plt.savefig(plot_filename)
@@ -119,6 +122,7 @@ def EDA(df):
     print(df.info())
     print(df.describe())
 
+    # Создание папки для сохранения графиков
     folder_name = "eda"
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
@@ -126,23 +130,21 @@ def EDA(df):
     # Построение матрицы корреляции до обработки данных
     plot_corr(df, title="Correlation_Matrix_Before_Processing")
 
-    # Удаление выбранных столбцов
+    # Удаление ненужных столбцов
     df = df.drop(['person_emp_exp', 'cb_person_cred_hist_length'], axis=1)
-    print("Delete columns")
-    print(df.columns)
 
     # Построение матрицы корреляции после обработки данных
     plot_corr(df, title="Correlation_Matrix_After_Processing")
+
+    # Анализ каждого столбца
     results = {}
-    int_cols = ['person_age', 'person_income', 'person_emp_exp', 'loan_amnt', 'loan_int_rate', 'loan_percent_income', 'cb_person_cred_hist_length', 'credit_score']
     for col in df.columns:
-        if col in int_cols:
-            col_result = analyze_int_column(df[col])
-            results[col] = col_result
+        if df[col].dtype in ['int64', 'float64']:
+            results[col] = analyze_int_column(df[col])
         else:
-            col_result = analyze_obj_column(df[col])
-            results[col] = col_result
-    print("EDA per column")
+            results[col] = analyze_obj_column(df[col])
+
+    print("Результаты анализа столбцов:")
     print(results)
 
     df = df.drop(df[df['person_age'] > 100].index)
@@ -150,8 +152,12 @@ def EDA(df):
     return df
 
 if __name__ == "__main__":
+    # Загрузка данных
     filename = 'data/data.csv'
-
     df = pd.read_csv(filename)
+
+    # Проведение EDA
     df = EDA(df)
+
+    # Сохранение обновленных данных
     df.to_csv('data/update_df.csv', index=False)
