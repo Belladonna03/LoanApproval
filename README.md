@@ -49,10 +49,10 @@ Welcome to the **LoanApproval Data Analysis and Prediction Pipeline**! This proj
 
 ### Example Outputs:
 Correlation Matrix:
-<img src="eda/Correlation_Matrix_Before_Processing.png" alt="Correlation Matrix" width="400"/>
+<img src="eda/Correlation_Matrix_Before_Processing.png" alt="Correlation Matrix" width="600"/>
 
 Histogram/Boxplot/QQ-Plot:
-<img src="eda/loan_percent_income_eda.png" alt="Histogram/Boxplot/QQ-Plot" width="400"/>
+<img src="eda/loan_percent_income_eda.png" alt="Histogram/Boxplot/QQ-Plot" width="2000"/>
 
 ---
 
@@ -68,9 +68,11 @@ Histogram/Boxplot/QQ-Plot:
 
 ### Visual Outputs:
 ROC Curve:
+
 <img src="results/ROC_Curve_Comparison_RandomForest.png" alt="ROC_Curve" width="400"/>
 
 PR Curve:
+
 <img src="results/PR_Curve_Comparison_Fixed_RandomForest.png" alt="PR_Curve" width="400"/>
 
 ---
