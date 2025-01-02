@@ -19,7 +19,7 @@ def plot_corr(df, title):
 def plot_boxplot(df):
     plt.figure(figsize=(10,6))
     sns.boxplot(df)
-    plt.title("Boxplot для обнаружения выбросов")
+    plt.title("Boxplot for detecting outliers")
     plt.tight_layout()
     plt.show()
 
@@ -108,7 +108,7 @@ def analyze_obj_column(column):
     # Построение круговой диаграммы
     plt.figure(figsize=(6, 6))
     plt.pie(value_counts, labels=value_counts.index, autopct='%1.1f%%', startangle=140)
-    plt.title(f'Распределение значений столбца "{column.name}"')
+    plt.title(f'Distribution of "{column.name}"')
     plt.tight_layout()
 
     plot_filename = f"eda/{column.name}_pie_plot.png"
@@ -144,7 +144,7 @@ def EDA(df):
         else:
             results[col] = analyze_obj_column(df[col])
 
-    print("Результаты анализа столбцов:")
+    print("Column analysis results:")
     print(results)
 
     df = df.drop(df[df['person_age'] > 100].index)
