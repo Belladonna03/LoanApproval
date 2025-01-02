@@ -49,9 +49,11 @@ Welcome to the **LoanApproval Data Analysis and Prediction Pipeline**! This proj
 
 ### Example Outputs:
 Correlation Matrix:
+
 <img src="eda/Correlation_Matrix_Before_Processing.png" alt="Correlation Matrix" width="600"/>
 
 Histogram/Boxplot/QQ-Plot:
+
 <img src="eda/loan_percent_income_eda.png" alt="Histogram/Boxplot/QQ-Plot" width="2000"/>
 
 ---
